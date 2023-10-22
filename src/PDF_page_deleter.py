@@ -50,18 +50,6 @@ Installation: `pip install PyMuPDF`
 
 
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialog, QSpinBox, QVBoxLayout, QWidget, QTextEdit, QLabel, QSizePolicy
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt
-from PyPDF2 import PdfReader, PdfWriter
-import fitz
-
-class PDFPageDeleterApp(QMainWindow):
-	def __init__(self):
-		super().__init__()
-		self.init_ui()
-
-import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialog, QSpinBox, QVBoxLayout, QWidget, QTextEdit, QLabel, QSizePolicy, QHBoxLayout
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
