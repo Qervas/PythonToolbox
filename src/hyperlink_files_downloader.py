@@ -33,10 +33,12 @@ from urllib.parse import urljoin
 try:
     from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit, QTextEdit, QFileDialog, QLabel
     from PyQt6.QtCore import QThread, pyqtSignal
+    from PyQt6 import QtGui
     PYQT_VERSION = 6
 except ImportError:
     from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit, QTextEdit, QFileDialog, QLabel
     from PyQt5.QtCore import QThread, pyqtSignal
+    from PyQt5 import QtGui
     PYQT_VERSION = 5
 
 
@@ -66,9 +68,21 @@ class FileDownloader(QThread):
 class App(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('File Downloader')
-        self.setGeometry(10, 10, 400, 280)
-
+        
+        # set title
+        
+        self.setWindowTitle("Hyperlink Files Downloader")
+        
+        if PYQT_VERSION == 6:
+            screen = QtGui.QGuiApplication.primaryScreen().geometry()
+        else: # PYQT_VERSION == 5
+            screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        window_width, window_height = 350, 300
+        x = int((screen.width() - window_width) / 2)
+        y = int((screen.height() - window_height) / 2)
+        self.setGeometry(x, y, window_width, window_height)
+            
+            
         layout = QVBoxLayout()
 
         self.url_input = QLineEdit(self)
