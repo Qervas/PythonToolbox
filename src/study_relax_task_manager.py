@@ -79,6 +79,8 @@ class TaskManagerApp(QMainWindow):
 
 		self.start_button = QPushButton('Start', self)
 		self.start_button.clicked.connect(self.start_sessions)
+		self.stop_button = QPushButton('Stop', self)
+		self.stop_button.clicked.connect(self.stop_sessions)
 
 		self.current_time_label = QLabel('00:00:00', self)
   
@@ -99,8 +101,11 @@ class TaskManagerApp(QMainWindow):
 		main_layout.addLayout(input_layout)
 		main_layout.addWidget(self.session_list)
 		main_layout.addWidget(self.start_button)
+		main_layout.addWidget(self.stop_button)
 		main_layout.addWidget(self.current_time_label)
 		main_layout.addWidget(self.select_alarm_button)
+		  # Add the stop button to the main layout
+		# main_layout = self.centralWidget().layout()
 
 		central_widget = QWidget()
 		central_widget.setLayout(main_layout)
@@ -127,6 +132,9 @@ class TaskManagerApp(QMainWindow):
 	def clear_sessions(self):
 		self.sessions.clear()
 		self.session_list.clear()
+		self.current_session_index = -1
+		self.is_study_time = True
+		self.stop_sessions()
 
 	def start_sessions(self):
 		if not self.sessions:
@@ -134,24 +142,21 @@ class TaskManagerApp(QMainWindow):
 			return
 		self.current_session_index = 0
 		self.is_study_time = True  # Ensure we start with study time
-		self.start_next_session()
+		self.start_next_session(play_sound=False)
 
-	def start_next_session(self):
-		if self.current_session_index >= len(self.sessions):
-			QMessageBox.information(self, 'Done', 'All sessions completed!')
-			return
-
-		study_time, relax_time = self.sessions[self.current_session_index]
+	def start_next_session(self, play_sound=True):
+		if play_sound:  # Only play sound if the flag is set
+			self.media_player.play()
 		if self.is_study_time:
-			self.current_time = QTime.fromString(study_time)
+			self.current_time = QTime.fromString(self.sessions[self.current_session_index][0])
 			QMessageBox.information(self, 'Start Studying', 'Time to study!')
 		else:
-			self.current_time = QTime.fromString(relax_time)
+			self.current_time = QTime.fromString(self.sessions[self.current_session_index][1])
 			QMessageBox.information(self, 'Relax', 'Time to relax!')
 
-		self.media_player.play()
+
 		self.timer.start(1000)
-		self.is_study_time = not self.is_study_time
+		
 
 	def update_time(self):
 		self.current_time = self.current_time.addSecs(-1)
@@ -159,9 +164,24 @@ class TaskManagerApp(QMainWindow):
 
 		if self.current_time == QTime(0, 0):
 			self.timer.stop()
-			if not self.is_study_time:
+			self.is_study_time = not self.is_study_time
+			if self.is_study_time:  # If it's the end of relax time
 				self.current_session_index += 1
+			if self.current_session_index >= len(self.sessions):
+				self.media_player.play()
+				QMessageBox.information(self, 'Done', 'All sessions completed!')
+				return
 			self.start_next_session()
+
+	def stop_sessions(self):
+		"""Stop the timer and reset the sessions."""
+		self.timer.stop()
+		self.current_time_label.setText('00:00:00')
+		self.current_session_index = -1
+		self.is_study_time = True
+		QMessageBox.information(self, 'Stopped', 'Sessions have been stopped.')
+
+   
 	def select_alarm_sound(self):
 		options = QFileDialog.Options()
 		file_name, _ = QFileDialog.getOpenFileName(self, "Select Alarm Sound", "", "Audio Files (*.mp3 *.wav);;All Files (*)", options=options)
