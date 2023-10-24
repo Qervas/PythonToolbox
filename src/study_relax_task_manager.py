@@ -49,16 +49,20 @@ Ensure you have the following Python packages installed:
 - PyQt5.QtMultimedia: For playing the alarm sound.
 '''
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QListWidget, QMessageBox, QWidget, QTimeEdit, QFileDialog
-from PyQt5.QtCore import QTimer, QTime
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget, QMessageBox, QWidget, QTimeEdit, QFileDialog, QSizePolicy
+from PyQt5.QtCore import QTimer, QTime, QUrl, Qt, QFile, QIODevice
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtCore import QUrl
+from PyQt5.QtGui import QFont
 
+
+import tempfile
+import alarm_sound
 
 class TaskManagerApp(QMainWindow):
 	def __init__(self):
 		super().__init__()
 		self.init_ui()
+
 
 	def init_ui(self):
 		self.setWindowTitle('Study & Relax Task Manager')
@@ -88,11 +92,14 @@ class TaskManagerApp(QMainWindow):
 		self.select_alarm_button = QPushButton('Select Alarm Sound', self)
 		self.select_alarm_button.clicked.connect(self.select_alarm_sound)
 
+		self.study_time_label = QLabel('Study Time:')
+		self.relax_time_label = QLabel('Relax Time:')
+
 		# Layouts
 		input_layout = QHBoxLayout()
-		input_layout.addWidget(QLabel('Study Time:'))
+		input_layout.addWidget(self.study_time_label)
 		input_layout.addWidget(self.study_time_input)
-		input_layout.addWidget(QLabel('Relax Time:'))
+		input_layout.addWidget(self.relax_time_label)
 		input_layout.addWidget(self.relax_time_input)
 		input_layout.addWidget(self.add_session_button)
 		input_layout.addWidget(self.clear_sessions_button)
@@ -119,9 +126,77 @@ class TaskManagerApp(QMainWindow):
 		self.timer.timeout.connect(self.update_time)
 
 		# Set up media player for alarm sound
-		self.alarm_sound_path = "alarm.mp3"
+		self.temp_alarm_file = self.extract_resource_to_temp(":/alarm.wav")
 		self.media_player = QMediaPlayer(self)
+		self.alarm_sound_path = self.temp_alarm_file
 		self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(self.alarm_sound_path)))
+  
+		  # Adjust size policies for dynamic resizing
+		size_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+		self.study_time_input.setSizePolicy(size_policy)
+		self.relax_time_input.setSizePolicy(size_policy)
+		self.add_session_button.setSizePolicy(size_policy)
+		self.clear_sessions_button.setSizePolicy(size_policy)
+		self.session_list.setSizePolicy(size_policy)
+		self.start_button.setSizePolicy(size_policy)	
+		self.stop_button.setSizePolicy(size_policy)
+		self.current_time_label.setSizePolicy(size_policy)
+		self.select_alarm_button.setSizePolicy(size_policy)
+  
+	def extract_resource_to_temp(self, resource_path):
+		# Create a QFile object for the resource
+		file = QFile(resource_path)
+		
+		# Open the resource file for reading
+		if not file.open(QIODevice.ReadOnly):
+			raise Exception(f"Failed to open resource: {resource_path}")
+		
+		# Read the resource into a QByteArray
+		byte_array = file.readAll()
+		
+		# Close the resource file
+		file.close()
+		
+		# Extract the resource to a temporary file and return its path
+		temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+		temp_file.write(byte_array.data())
+		return temp_file.name
+  
+	def resizeEvent(self, event):
+		super().resizeEvent(event)
+		# Adjust font sizes on window resize
+		self.adjust_font_sizes()
+  
+	def adjust_font_sizes(self):
+		# Determine base font size based on the window's height
+		base_font_size = self.height() * 0.025
+
+		# Create a QFont object with the calculated font size
+		dynamic_font = QFont()
+		dynamic_font.setPointSize(int(base_font_size))
+
+		# Adjust font for current_time_label and other QLabel widgets
+		for label in [self.current_time_label]:
+			label.setFont(dynamic_font)
+
+		# Adjust font for QTimeEdit widgets
+		for widget in [self.study_time_input, self.relax_time_input]:
+			widget.setFont(dynamic_font)
+
+		# Adjust font for buttons
+		for btn in [self.add_session_button, self.clear_sessions_button, self.start_button, self.stop_button, self.select_alarm_button]:
+			btn.setFont(dynamic_font)
+
+		# Adjust font for QListWidget items
+		for index in range(self.session_list.count()):
+			item = self.session_list.item(index)
+			item.setFont(dynamic_font)
+	
+		# Adjust font for study_time_label and relax_time_label
+		for label in [self.study_time_label, self.relax_time_label]:
+			label.setFont(QFont(self.font().family(), int(self.height() * 0.025)))
+
 
 	def add_session(self):
 		study_time = self.study_time_input.time().toString()
@@ -149,14 +224,20 @@ class TaskManagerApp(QMainWindow):
 			self.media_player.play()
 		if self.is_study_time:
 			self.current_time = QTime.fromString(self.sessions[self.current_session_index][0])
-			QMessageBox.information(self, 'Start Studying', 'Time to study!')
+			self.show_non_blocking_message('Start Studying', 'Time to study!')
 		else:
 			self.current_time = QTime.fromString(self.sessions[self.current_session_index][1])
-			QMessageBox.information(self, 'Relax', 'Time to relax!')
-
+			self.show_non_blocking_message('Relax', 'Time to relax!')
 
 		self.timer.start(1000)
-		
+
+	def show_non_blocking_message(self, title, message):
+		msg = QMessageBox(self)
+		msg.setWindowTitle(title)
+		msg.setText(message)
+		msg.setFont(QFont(self.font().family(), int(self.height() * 0.025)))  # Adjust font size dynamically
+		msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+		msg.show()
 
 	def update_time(self):
 		self.current_time = self.current_time.addSecs(-1)
@@ -169,7 +250,7 @@ class TaskManagerApp(QMainWindow):
 				self.current_session_index += 1
 			if self.current_session_index >= len(self.sessions):
 				self.media_player.play()
-				QMessageBox.information(self, 'Done', 'All sessions completed!')
+				self.show_non_blocking_message('Done', 'All sessions completed!')
 				return
 			self.start_next_session()
 
